@@ -2,7 +2,7 @@ import AuthProductPreview from '../components/AuthProductPreview';
 import { SunIcon, MoonIcon } from '../components/Icons';
 import Logo from '../components/Logo';
 
-function AuthPage({ mode, onModeChange, onSubmit, theme, onToggleTheme }) {
+function AuthPage({ mode, onModeChange, onSubmit, theme, onToggleTheme, error }) {
   const isRegister = mode === 'register';
 
   return (
@@ -33,32 +33,36 @@ function AuthPage({ mode, onModeChange, onSubmit, theme, onToggleTheme }) {
       <section className="auth-card" aria-label={isRegister ? 'Create account' : 'Log in'}>
         <p className="eyebrow">{isRegister ? 'Create account' : 'Welcome back'}</p>
         <h2>{isRegister ? 'Start your profile' : 'Log in to ProjectMate'}</h2>
-        <p className="mock-note">Demo mode: use any valid email and password for now.</p>
+        {error && (
+          <div style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px 14px', borderRadius: '6px', fontSize: '0.85rem', margin: '12px 0', fontWeight: '500', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={onSubmit}>
           {isRegister && (
             <label>
               Name
-              <input type="text" placeholder="Rutika Patil" required />
+              <input type="text" name="name" placeholder="Rutika Patil" required />
             </label>
           )}
           <label>
             Email
-            <input type="email" placeholder="rutika@example.com" required />
+            <input type="email" name="email" placeholder="rutika@example.com" required />
           </label>
           <label>
             Password
-            <input type="password" placeholder="Minimum 6 characters" minLength="6" required />
+            <input type="password" name="password" placeholder="Minimum 6 characters" minLength="6" required />
           </label>
           {isRegister && (
             <label>
               Primary role
-              <select required defaultValue="">
+              <select name="role" required defaultValue="">
                 <option value="" disabled>Select your role</option>
-                <option>Frontend Developer</option>
-                <option>Backend Developer</option>
-                <option>Full Stack Developer</option>
-                <option>Designer</option>
+                <option value="Frontend Developer">Frontend Developer</option>
+                <option value="Backend Developer">Backend Developer</option>
+                <option value="Full Stack Developer">Full Stack Developer</option>
+                <option value="Designer">Designer</option>
               </select>
             </label>
           )}
@@ -67,10 +71,16 @@ function AuthPage({ mode, onModeChange, onSubmit, theme, onToggleTheme }) {
           </button>
         </form>
 
-        <button className="ghost-action" type="button">
-          Continue with GitHub
-        </button>
-        <p className="auth-switch">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '16px' }}>
+          <a href="http://localhost:8080/oauth2/authorization/github" className="ghost-action" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            Continue with GitHub
+          </a>
+          <a href="http://localhost:8080/oauth2/authorization/google" className="ghost-action" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+            Continue with Google
+          </a>
+        </div>
+        
+        <p className="auth-switch" style={{ marginTop: '16px' }}>
           {isRegister ? 'Already have an account?' : 'New to ProjectMate?'}
           <button type="button" onClick={() => onModeChange(isRegister ? 'login' : 'register')}>
             {isRegister ? 'Log in' : 'Create account'}

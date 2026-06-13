@@ -1,10 +1,15 @@
 import { initials } from '../utils/format';
 
-function DeveloperList({ developers }) {
+function DeveloperList({ developers, onViewProfile }) {
   return (
     <div className="developer-list">
       {developers.map((developer) => (
-        <article className="developer-row" key={developer.name}>
+        <article 
+          className="developer-row" 
+          key={developer.id || developer.name}
+          onClick={() => onViewProfile && onViewProfile(developer.id)}
+          style={{ cursor: onViewProfile ? 'pointer' : 'default' }}
+        >
           <div className="avatar small">{initials(developer.name)}</div>
           <div>
             <h3>{developer.name}</h3>

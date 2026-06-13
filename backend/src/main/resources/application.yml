@@ -6,7 +6,7 @@ spring:
     name: backend
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb-uri-placeholder}
+      uri: ${MONGODB_URI:mongodb://localhost:27017/projectmate}
   security:
     oauth2:
       client:

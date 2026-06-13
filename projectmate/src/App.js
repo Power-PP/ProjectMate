@@ -9,6 +9,7 @@ import MyProjectsPage from './pages/MyProjectsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   const [authMode, setAuthMode] = useState('login');
@@ -22,6 +23,12 @@ function App() {
   });
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Live state lists
+  const [projectsList, setProjectsList] = useState([]);
+  const [developersList, setDevelopersList] = useState([]);
+  const [myProjects, setMyProjects] = useState({ owned: [], joined: [] });
+  const [activeDeveloperId, setActiveDeveloperId] = useState(null);
 
   // Validate active session with Spring BFF on load
   useEffect(() => {
@@ -42,6 +49,33 @@ function App() {
       });
   }, []);
 
+  // Fetch live lists on user context change
+  useEffect(() => {
+    if (user) {
+      // Fetch active projects
+      fetch('http://localhost:8080/api/projects', { credentials: 'include' })
+        .then((res) => res.ok ? res.json() : [])
+        .then((data) => setProjectsList(data))
+        .catch(() => setProjectsList([]));
+
+      // Fetch active developers
+      fetch('http://localhost:8080/api/developers', { credentials: 'include' })
+        .then((res) => res.ok ? res.json() : [])
+        .then((data) => setDevelopersList(data))
+        .catch(() => setDevelopersList([]));
+
+      // Fetch user specific projects
+      fetch('http://localhost:8080/api/projects/my', { credentials: 'include' })
+        .then((res) => res.ok ? res.json() : { owned: [], joined: [] })
+        .then((data) => setMyProjects(data))
+        .catch(() => setMyProjects({ owned: [], joined: [] }));
+    } else {
+      setProjectsList([]);
+      setDevelopersList([]);
+      setMyProjects({ owned: [], joined: [] });
+    }
+  }, [user]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('pm-theme', theme);
@@ -52,13 +86,13 @@ function App() {
   };
 
   const filteredProjects = useMemo(() => {
-    return projects.filter((project) => {
+    return projectsList.filter((project) => {
       const searchText = `${project.title} ${project.description} ${project.stack.join(' ')}`.toLowerCase();
       const matchesSearch = searchText.includes(searchTerm.toLowerCase());
       const matchesStatus = selectedStatus === 'All' || project.status === selectedStatus;
       return matchesSearch && matchesStatus;
     });
-  }, [searchTerm, selectedStatus]);
+  }, [projectsList, searchTerm, selectedStatus]);
 
   const authenticate = (event) => {
     event.preventDefault();
@@ -154,6 +188,32 @@ function App() {
       });
   };
 
+  const handleApplyProject = (projectId) => {
+    fetch(`http://localhost:8080/api/projects/${projectId}/apply`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          // Re-fetch projects to update collaboration status
+          fetch('http://localhost:8080/api/projects', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => setProjectsList(data));
+            
+          fetch('http://localhost:8080/api/projects/my', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => setMyProjects(data));
+            
+          alert('Application submitted successfully!');
+          return;
+        }
+        return res.json().then(err => { throw new Error(err.error || 'Failed to apply'); });
+      })
+      .catch((err) => {
+        alert(err.message);
+      });
+  };
+
   const toggleSaved = (projectId) => {
     setSavedProjects((current) =>
       current.includes(projectId)
@@ -188,21 +248,31 @@ function App() {
     );
   }
 
+  const handleViewDeveloperProfile = (devId) => {
+    setActiveDeveloperId(devId);
+    setActivePage('profile');
+  };
+
   return (
     <WorkspaceLayout
       activePage={activePage}
       user={user}
       onLogout={handleLogout}
-      onPageChange={setActivePage}
+      onPageChange={(page) => {
+        setActiveDeveloperId(null);
+        setActivePage(page);
+      }}
       theme={theme}
       onToggleTheme={toggleTheme}
     >
       {activePage === 'dashboard' && (
         <DashboardPage
-          projects={projects}
-          developers={developers}
+          currentUser={user}
+          projects={projectsList}
+          developers={developersList}
           notifications={notifications}
           onPageChange={setActivePage}
+          onViewProfile={handleViewDeveloperProfile}
         />
       )}
       {activePage === 'projects' && (
@@ -214,13 +284,28 @@ function App() {
           onSearchChange={setSearchTerm}
           onStatusChange={setSelectedStatus}
           onToggleSaved={toggleSaved}
+          currentUser={user}
+          onApply={handleApplyProject}
         />
       )}
-      {activePage === 'developers' && <DevelopersPage developers={developers} />}
+      {activePage === 'developers' && (
+        <DevelopersPage 
+          developers={developersList} 
+          onViewProfile={handleViewDeveloperProfile}
+        />
+      )}
+      {activePage === 'profile' && (
+        <ProfilePage
+          currentUser={user}
+          developerId={activeDeveloperId}
+          onUpdateUser={setUser}
+          onBack={() => setActivePage('developers')}
+        />
+      )}
       {activePage === 'my-projects' && (
         <MyProjectsPage
-          ownedProjects={projects.slice(0, 2)}
-          joinedProjects={projects.slice(2)}
+          ownedProjects={myProjects.owned}
+          joinedProjects={myProjects.joined}
         />
       )}
       {activePage === 'notifications' && <NotificationsPage items={notifications} />}

@@ -90,7 +90,13 @@ public class AuthController {
                         if (request.getCollege() != null) edu.setCollege(request.getCollege());
                         if (request.getDegree() != null) edu.setDegree(request.getDegree());
                         if (request.getFieldOfStudy() != null) edu.setFieldOfStudy(request.getFieldOfStudy());
+                        if (request.getGraduationYear() != null) edu.setGraduationYear(request.getGraduationYear());
                         u.setEducation(edu);
+
+                        if (request.getBio() != null) u.setBio(request.getBio());
+                        if (request.getGithubUrl() != null) u.setGithubUrl(request.getGithubUrl());
+                        if (request.getLinkedinUrl() != null) u.setLinkedinUrl(request.getLinkedinUrl());
+                        if (request.getPortfolioUrl() != null) u.setPortfolioUrl(request.getPortfolioUrl());
 
                         userRepository.save(u);
 
@@ -99,6 +105,10 @@ public class AuthController {
                         ((CustomUserDetails) principal).getUser().setRole(u.getRole());
                         ((CustomUserDetails) principal).getUser().setSkills(u.getSkills());
                         ((CustomUserDetails) principal).getUser().setEducation(u.getEducation());
+                        ((CustomUserDetails) principal).getUser().setBio(u.getBio());
+                        ((CustomUserDetails) principal).getUser().setGithubUrl(u.getGithubUrl());
+                        ((CustomUserDetails) principal).getUser().setLinkedinUrl(u.getLinkedinUrl());
+                        ((CustomUserDetails) principal).getUser().setPortfolioUrl(u.getPortfolioUrl());
 
                         u.setPassword(null);
                         return ResponseEntity.ok(u);
@@ -126,5 +136,10 @@ public class AuthController {
         private String college;
         private String degree;
         private String fieldOfStudy;
+        private String graduationYear;
+        private String bio;
+        private String githubUrl;
+        private String linkedinUrl;
+        private String portfolioUrl;
     }
 }

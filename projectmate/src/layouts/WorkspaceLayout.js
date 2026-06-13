@@ -86,10 +86,10 @@ function WorkspaceLayout({ activePage, user, children, onLogout, onPageChange, t
 
             {/* Profile Navigation Trigger */}
             <button
-              className={activePage === 'settings' ? 'profile-nav-trigger active' : 'profile-nav-trigger'}
+              className={activePage === 'profile' ? 'profile-nav-trigger active' : 'profile-nav-trigger'}
               type="button"
-              onClick={() => onPageChange('settings')}
-              aria-label="Settings"
+              onClick={() => onPageChange('profile')}
+              aria-label="Profile"
             >
               <div className="avatar small">{initials(user.name)}</div>
               <span className="user-name-text">{user.name}</span>

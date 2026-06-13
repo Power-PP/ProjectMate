@@ -4,13 +4,22 @@ import PanelHeader from '../components/PanelHeader';
 import ProjectCard from '../components/ProjectCard';
 import { PlusIcon } from '../components/Icons';
 
-function DashboardPage({ projects, developers, notifications, onPageChange }) {
+function DashboardPage({ currentUser, projects, developers, notifications, onPageChange, onViewProfile }) {
+  const getGreeting = () => {
+    const hrs = new Date().getHours();
+    if (hrs < 12) return 'Good morning';
+    if (hrs < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const firstName = currentUser && currentUser.name ? currentUser.name.split(' ')[0] : 'Developer';
+
   return (
     <section className="page">
       <div className="page-heading split">
         <div>
           <p className="eyebrow">Workspace</p>
-          <h1>Good morning, Rutika</h1>
+          <h1>{getGreeting()}, {firstName}</h1>
           <p>Recommended work, team updates, and collaboration signals in one place.</p>
         </div>
         <div className="heading-actions">
@@ -43,7 +52,7 @@ function DashboardPage({ projects, developers, notifications, onPageChange }) {
 
         <section className="panel">
           <PanelHeader title="Suggested developers" action="Browse" onClick={() => onPageChange('developers')} />
-          <DeveloperList developers={developers.slice(0, 3)} />
+          <DeveloperList developers={developers.slice(0, 3)} onViewProfile={onViewProfile} />
         </section>
 
         <section className="panel">

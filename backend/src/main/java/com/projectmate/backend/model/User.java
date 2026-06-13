@@ -30,6 +30,10 @@ public class User {
     private AuthProvider provider;
     private String providerId;
     private Education education;
+    private String bio;
+    private String githubUrl;
+    private String linkedinUrl;
+    private String portfolioUrl;
 
     @Data
     @Builder
@@ -39,6 +43,7 @@ public class User {
         private String college;
         private String degree;
         private String fieldOfStudy;
+        private String graduationYear;
     }
 
     public enum AuthProvider {

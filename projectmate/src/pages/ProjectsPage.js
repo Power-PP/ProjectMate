@@ -10,6 +10,8 @@ function ProjectsPage({
   onSearchChange,
   onStatusChange,
   onToggleSaved,
+  currentUser,
+  onApply,
 }) {
   return (
     <section className="page">
@@ -52,6 +54,8 @@ function ProjectsPage({
               project={project}
               saved={savedProjects.includes(project.id)}
               onToggleSaved={() => onToggleSaved(project.id)}
+              currentUser={currentUser}
+              onApply={() => onApply(project.id)}
             />
           ))}
         </div>

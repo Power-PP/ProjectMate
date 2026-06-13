@@ -20,6 +20,27 @@ function App() {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('pm-theme') || 'dark';
   });
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Validate active session with Spring BFF on load
+  useEffect(() => {
+    fetch('http://localhost:8080/api/auth/me', { credentials: 'include' })
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        }
+        throw new Error('Not authenticated');
+      })
+      .then((data) => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setUser(null);
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -41,12 +62,96 @@ function App() {
 
   const authenticate = (event) => {
     event.preventDefault();
-    setUser({
-      name: authMode === 'register' ? 'Rutika Patil' : 'Rutika',
-      role: 'Full Stack Developer',
-      skills: ['React', 'Java', 'MongoDB'],
-    });
-    setActivePage('dashboard');
+    setErrorMsg('');
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email');
+    const password = formData.get('password');
+
+    if (authMode === 'login') {
+      const params = new URLSearchParams();
+      params.append('email', email);
+      params.append('password', password);
+
+      fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+        credentials: 'include',
+      })
+        .then((res) => {
+          if (res.ok) {
+            return fetch('http://localhost:8080/api/auth/me', { credentials: 'include' });
+          }
+          return res.json().then((err) => { throw new Error(err.error || 'Invalid credentials'); });
+        })
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to retrieve user profile');
+          return res.json();
+        })
+        .then((data) => {
+          setUser(data);
+          setActivePage('dashboard');
+        })
+        .catch((err) => {
+          setErrorMsg(err.message);
+        });
+    } else {
+      const name = formData.get('name');
+      const role = formData.get('role');
+
+      fetch('http://localhost:8080/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role,
+          skills: []
+        })
+      })
+        .then((res) => {
+          if (res.ok) {
+            const params = new URLSearchParams();
+            params.append('email', email);
+            params.append('password', password);
+
+            return fetch('http://localhost:8080/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: params,
+              credentials: 'include',
+            });
+          }
+          return res.json().then((err) => { throw new Error(err.error || 'Signup failed'); });
+        })
+        .then((res) => {
+          if (!res.ok) throw new Error('Signup succeeded, but auto-login failed');
+          return fetch('http://localhost:8080/api/auth/me', { credentials: 'include' });
+        })
+        .then((res) => {
+          if (!res.ok) throw new Error('Failed to retrieve profile after auto-login');
+          return res.json();
+        })
+        .then((data) => {
+          setUser(data);
+          setActivePage('dashboard');
+        })
+        .catch((err) => {
+          setErrorMsg(err.message);
+        });
+    }
+  };
+
+  const handleLogout = () => {
+    fetch('http://localhost:8080/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .finally(() => {
+        setUser(null);
+        setActivePage('dashboard');
+      });
   };
 
   const toggleSaved = (projectId) => {
@@ -57,6 +162,19 @@ function App() {
     );
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'var(--bg-primary, #0f0f11)', color: 'var(--text-primary, #f3f4f6)', gap: '16px' }}>
+        <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '3px solid rgba(255, 255, 255, 0.1)', borderRadius: '50%', borderTopColor: 'var(--accent-color, #6366f1)', animation: 'spin 1s linear infinite' }} />
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <AuthPage
@@ -65,6 +183,7 @@ function App() {
         onSubmit={authenticate}
         theme={theme}
         onToggleTheme={toggleTheme}
+        error={errorMsg}
       />
     );
   }
@@ -73,7 +192,7 @@ function App() {
     <WorkspaceLayout
       activePage={activePage}
       user={user}
-      onLogout={() => setUser(null)}
+      onLogout={handleLogout}
       onPageChange={setActivePage}
       theme={theme}
       onToggleTheme={toggleTheme}
@@ -105,7 +224,7 @@ function App() {
         />
       )}
       {activePage === 'notifications' && <NotificationsPage items={notifications} />}
-      {activePage === 'settings' && <SettingsPage user={user} />}
+      {activePage === 'settings' && <SettingsPage user={user} onUpdateUser={setUser} />}
     </WorkspaceLayout>
   );
 }

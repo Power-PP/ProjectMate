@@ -1,6 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import './App.css';
-import { developers, notifications, projects } from './data/mockData';
 import WorkspaceLayout from './layouts/WorkspaceLayout';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
@@ -29,6 +28,11 @@ function App() {
   const [developersList, setDevelopersList] = useState([]);
   const [myProjects, setMyProjects] = useState({ owned: [], joined: [] });
   const [activeDeveloperId, setActiveDeveloperId] = useState(null);
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [incomingApps, setIncomingApps] = useState([]);
+  const [outgoingApps, setOutgoingApps] = useState([]);
 
   // Validate active session with Spring BFF on load
   useEffect(() => {
@@ -49,14 +53,86 @@ function App() {
       });
   }, []);
 
+  const fetchNotifications = useCallback(() => {
+    if (!user) return;
+    fetch('http://localhost:8080/api/notifications', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : { notifications: [], unreadCount: 0 })
+      .then((data) => {
+        setNotificationsList(data.notifications || []);
+        setUnreadNotificationsCount(data.unreadCount || 0);
+      })
+      .catch(() => {
+        setNotificationsList([]);
+        setUnreadNotificationsCount(0);
+      });
+  }, [user]);
+
+  const markAllNotificationsAsRead = () => {
+    fetch('http://localhost:8080/api/notifications/read-all', {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          setUnreadNotificationsCount(0);
+          // Refresh notifications list to update read statuses
+          fetch('http://localhost:8080/api/notifications', { credentials: 'include' })
+            .then((res) => res.ok ? res.json() : { notifications: [], unreadCount: 0 })
+            .then((data) => {
+              setNotificationsList(data.notifications || []);
+            });
+        }
+      })
+      .catch(() => {});
+  };
+
+  const clearAllNotifications = () => {
+    fetch('http://localhost:8080/api/notifications', {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          setNotificationsList([]);
+          setUnreadNotificationsCount(0);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const reloadApplications = useCallback(() => {
+    if (!user) return;
+    fetch('http://localhost:8080/api/applications/incoming', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setIncomingApps(data))
+      .catch(() => setIncomingApps([]));
+
+    fetch('http://localhost:8080/api/applications/outgoing', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setOutgoingApps(data))
+      .catch(() => setOutgoingApps([]));
+  }, [user]);
+
+  const reloadProjects = useCallback(() => {
+    if (!user) return;
+    fetch('http://localhost:8080/api/projects', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setProjectsList(data))
+      .catch(() => setProjectsList([]));
+      
+    fetch('http://localhost:8080/api/projects/my', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() : { owned: [], joined: [] })
+      .then((data) => setMyProjects(data))
+      .catch(() => setMyProjects({ owned: [], joined: [] }));
+
+    reloadApplications();
+  }, [user, reloadApplications]);
+
   // Fetch live lists on user context change
   useEffect(() => {
     if (user) {
-      // Fetch active projects
-      fetch('http://localhost:8080/api/projects', { credentials: 'include' })
-        .then((res) => res.ok ? res.json() : [])
-        .then((data) => setProjectsList(data))
-        .catch(() => setProjectsList([]));
+      // Fetch active projects & my projects
+      reloadProjects();
 
       // Fetch active developers
       fetch('http://localhost:8080/api/developers', { credentials: 'include' })
@@ -64,17 +140,18 @@ function App() {
         .then((data) => setDevelopersList(data))
         .catch(() => setDevelopersList([]));
 
-      // Fetch user specific projects
-      fetch('http://localhost:8080/api/projects/my', { credentials: 'include' })
-        .then((res) => res.ok ? res.json() : { owned: [], joined: [] })
-        .then((data) => setMyProjects(data))
-        .catch(() => setMyProjects({ owned: [], joined: [] }));
+      // Fetch user notifications
+      fetchNotifications();
     } else {
       setProjectsList([]);
       setDevelopersList([]);
       setMyProjects({ owned: [], joined: [] });
+      setNotificationsList([]);
+      setUnreadNotificationsCount(0);
+      setIncomingApps([]);
+      setOutgoingApps([]);
     }
-  }, [user]);
+  }, [user, fetchNotifications, reloadProjects]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -188,22 +265,16 @@ function App() {
       });
   };
 
-  const handleApplyProject = (projectId) => {
+  const handleApplyProject = (projectId, notes) => {
     fetch(`http://localhost:8080/api/projects/${projectId}/apply`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: notes || '' }),
       credentials: 'include'
     })
       .then((res) => {
         if (res.ok) {
-          // Re-fetch projects to update collaboration status
-          fetch('http://localhost:8080/api/projects', { credentials: 'include' })
-            .then(r => r.json())
-            .then(data => setProjectsList(data));
-            
-          fetch('http://localhost:8080/api/projects/my', { credentials: 'include' })
-            .then(r => r.json())
-            .then(data => setMyProjects(data));
-            
+          reloadProjects();
           alert('Application submitted successfully!');
           return;
         }
@@ -214,6 +285,38 @@ function App() {
       });
   };
 
+  const handleAcceptApp = (appId) => {
+    fetch(`http://localhost:8080/api/applications/${appId}/accept`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          reloadProjects();
+          alert('Applicant accepted successfully!');
+        } else {
+          return res.json().then(err => { throw new Error(err.error || 'Failed to accept applicant'); });
+        }
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  const handleRejectApp = (appId) => {
+    fetch(`http://localhost:8080/api/applications/${appId}/reject`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          reloadProjects();
+          alert('Application declined.');
+        } else {
+          return res.json().then(err => { throw new Error(err.error || 'Failed to decline applicant'); });
+        }
+      })
+      .catch((err) => alert(err.message));
+  };
+
   const toggleSaved = (projectId) => {
     setSavedProjects((current) =>
       current.includes(projectId)
@@ -221,6 +324,25 @@ function App() {
         : [...current, projectId]
     );
   };
+  const handlePageChange = useCallback((page) => {
+    setActiveDeveloperId(null);
+    if (page === 'create-project') {
+      setOpenCreateModal(true);
+      setActivePage('projects');
+      return;
+    }
+    setActivePage(page);
+    if (page === 'notifications') {
+      markAllNotificationsAsRead();
+      reloadApplications();
+    } else if (page === 'my-projects') {
+      reloadProjects();
+    } else if (page === 'projects') {
+      reloadProjects();
+    } else {
+      fetchNotifications();
+    }
+  }, [reloadApplications, reloadProjects, fetchNotifications]);
 
   if (loading) {
     return (
@@ -258,20 +380,18 @@ function App() {
       activePage={activePage}
       user={user}
       onLogout={handleLogout}
-      onPageChange={(page) => {
-        setActiveDeveloperId(null);
-        setActivePage(page);
-      }}
+      onPageChange={handlePageChange}
       theme={theme}
       onToggleTheme={toggleTheme}
+      unreadNotificationsCount={unreadNotificationsCount}
     >
       {activePage === 'dashboard' && (
         <DashboardPage
           currentUser={user}
           projects={projectsList}
           developers={developersList}
-          notifications={notifications}
-          onPageChange={setActivePage}
+          notifications={notificationsList}
+          onPageChange={handlePageChange}
           onViewProfile={handleViewDeveloperProfile}
         />
       )}
@@ -286,6 +406,9 @@ function App() {
           onToggleSaved={toggleSaved}
           currentUser={user}
           onApply={handleApplyProject}
+          onReloadProjects={reloadProjects}
+          openCreateModal={openCreateModal}
+          setOpenCreateModal={setOpenCreateModal}
         />
       )}
       {activePage === 'developers' && (
@@ -306,9 +429,21 @@ function App() {
         <MyProjectsPage
           ownedProjects={myProjects.owned}
           joinedProjects={myProjects.joined}
+          incomingApps={incomingApps}
+          outgoingApps={outgoingApps}
+          onAcceptApp={handleAcceptApp}
+          onRejectApp={handleRejectApp}
         />
       )}
-      {activePage === 'notifications' && <NotificationsPage items={notifications} />}
+      {activePage === 'notifications' && (
+        <NotificationsPage 
+          items={notificationsList} 
+          incomingApps={incomingApps}
+          onAcceptApp={handleAcceptApp}
+          onRejectApp={handleRejectApp}
+          onClearAll={clearAllNotifications}
+        />
+      )}
       {activePage === 'settings' && <SettingsPage user={user} onUpdateUser={setUser} />}
     </WorkspaceLayout>
   );

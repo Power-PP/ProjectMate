@@ -1,8 +1,7 @@
 import React from 'react';
 
-function NotificationsPage({ items, incomingApps = [], onAcceptApp, onRejectApp }) {
+function NotificationsPage({ items, incomingApps = [], onAcceptApp, onRejectApp, onClearAll }) {
 
-  console.log(items, 'items')
   const formatTime = (isoString) => {
     if (!isoString) return 'Just now';
     try {
@@ -22,10 +21,22 @@ function NotificationsPage({ items, incomingApps = [], onAcceptApp, onRejectApp 
 
   return (
     <section className="page narrow">
-      <div className="page-heading">
-        <p className="eyebrow">Updates</p>
-        <h1>Notifications</h1>
-        <p>Application activity and project changes that need your attention.</p>
+      <div className="page-heading split" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <p className="eyebrow">Updates</p>
+          <h1>Notifications</h1>
+          <p>Application activity and project changes that need your attention.</p>
+        </div>
+        {items && items.length > 0 && (
+          <button 
+            className="secondary-action" 
+            type="button" 
+            onClick={onClearAll}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            Clear All
+          </button>
+        )}
       </div>
       <section className="panel" style={{ padding: '8px 0' }}>
         {items && items.length > 0 ? (

@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { initials } from '../utils/format';
 
 function ProfilePage({ currentUser, developerId, onUpdateUser, onBack }) {
+  const getSingleName = (fullName) => {
+    if (!fullName) return '';
+    return fullName.trim().split(' ')[0];
+  };
+
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -400,7 +405,7 @@ function ProfilePage({ currentUser, developerId, onUpdateUser, onBack }) {
       <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <p className="eyebrow">{isOwnProfile ? 'Your Portal' : 'Developer Directory'}</p>
-          <h1>{isOwnProfile ? 'My Portfolio' : `${profileUser.name}'s Profile`}</h1>
+          <h1>{isOwnProfile ? 'My Portfolio' : `${getSingleName(profileUser.name)}'s Profile`}</h1>
         </div>
         
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -528,7 +533,7 @@ function ProfilePage({ currentUser, developerId, onUpdateUser, onBack }) {
             {/* Hero Card */}
             <div className="profile-card profile-hero">
               <div className="hero-avatar">{initials(profileUser.name)}</div>
-              <h2 className="hero-name">{profileUser.name}</h2>
+              <h2 className="hero-name">{getSingleName(profileUser.name)}</h2>
               <div className="hero-role">{profileUser.role || 'Developer'}</div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>ID: {profileUser.id}</p>
             </div>

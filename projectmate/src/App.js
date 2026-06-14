@@ -86,6 +86,20 @@ function App() {
       .catch(() => {});
   };
 
+  const clearAllNotifications = () => {
+    fetch('http://localhost:8080/api/notifications', {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+      .then((res) => {
+        if (res.ok) {
+          setNotificationsList([]);
+          setUnreadNotificationsCount(0);
+        }
+      })
+      .catch(() => {});
+  };
+
   const reloadApplications = useCallback(() => {
     if (!user) return;
     fetch('http://localhost:8080/api/applications/incoming', { credentials: 'include' })
@@ -310,6 +324,25 @@ function App() {
         : [...current, projectId]
     );
   };
+  const handlePageChange = useCallback((page) => {
+    setActiveDeveloperId(null);
+    if (page === 'create-project') {
+      setOpenCreateModal(true);
+      setActivePage('projects');
+      return;
+    }
+    setActivePage(page);
+    if (page === 'notifications') {
+      markAllNotificationsAsRead();
+      reloadApplications();
+    } else if (page === 'my-projects') {
+      reloadProjects();
+    } else if (page === 'projects') {
+      reloadProjects();
+    } else {
+      fetchNotifications();
+    }
+  }, [reloadApplications, reloadProjects, fetchNotifications]);
 
   if (loading) {
     return (
@@ -347,16 +380,7 @@ function App() {
       activePage={activePage}
       user={user}
       onLogout={handleLogout}
-      onPageChange={(page) => {
-        setActiveDeveloperId(null);
-        setActivePage(page);
-        if (page === 'notifications') {
-          markAllNotificationsAsRead();
-        } else {
-          // Refresh count periodically or on navigation
-          fetchNotifications();
-        }
-      }}
+      onPageChange={handlePageChange}
       theme={theme}
       onToggleTheme={toggleTheme}
       unreadNotificationsCount={unreadNotificationsCount}
@@ -367,14 +391,7 @@ function App() {
           projects={projectsList}
           developers={developersList}
           notifications={notificationsList}
-          onPageChange={(page) => {
-            if (page === 'create-project') {
-              setOpenCreateModal(true);
-              setActivePage('projects');
-            } else {
-              setActivePage(page);
-            }
-          }}
+          onPageChange={handlePageChange}
           onViewProfile={handleViewDeveloperProfile}
         />
       )}
@@ -424,6 +441,7 @@ function App() {
           incomingApps={incomingApps}
           onAcceptApp={handleAcceptApp}
           onRejectApp={handleRejectApp}
+          onClearAll={clearAllNotifications}
         />
       )}
       {activePage === 'settings' && <SettingsPage user={user} onUpdateUser={setUser} />}

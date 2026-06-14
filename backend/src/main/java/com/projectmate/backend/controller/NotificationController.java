@@ -92,4 +92,20 @@ public class NotificationController {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid principal type"));
     }
+
+    @DeleteMapping
+    public ResponseEntity<?> clearNotifications(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof CustomUserDetails) {
+            User user = ((CustomUserDetails) principal).getUser();
+            notificationRepository.deleteByRecipientId(user.getId());
+            return ResponseEntity.ok(Map.of("message", "All notifications cleared"));
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid principal type"));
+    }
 }

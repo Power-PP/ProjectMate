@@ -24,7 +24,7 @@ const iconMap = {
   settings: SettingsIcon,
 };
 
-function WorkspaceLayout({ activePage, user, children, onLogout, onPageChange, theme, onToggleTheme }) {
+function WorkspaceLayout({ activePage, user, children, onLogout, onPageChange, theme, onToggleTheme, unreadNotificationsCount }) {
   // Filter navbar links to only show Projects, Developers, and My Projects
   const navbarLinks = navItems.filter((item) =>
     ['projects', 'developers', 'my-projects'].includes(item.id)
@@ -79,9 +79,34 @@ function WorkspaceLayout({ activePage, user, children, onLogout, onPageChange, t
               type="button"
               onClick={() => onPageChange('notifications')}
               aria-label="Notifications"
+              style={{ position: 'relative' }}
             >
               <BellIcon size={18} />
-              <span className="notification-badge"></span>
+              {unreadNotificationsCount > 0 && (
+                <span 
+                  className="notification-badge"
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    backgroundColor: 'var(--accent-rose, #f43f5e)',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    padding: '2px 4px',
+                    fontSize: '0.65rem',
+                    fontWeight: '700',
+                    lineHeight: '1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '15px',
+                    height: '15px',
+                    boxShadow: '0 0 8px rgba(244, 63, 94, 0.5)'
+                  }}
+                >
+                  {unreadNotificationsCount}
+                </span>
+              )}
             </button>
 
             {/* Profile Navigation Trigger */}

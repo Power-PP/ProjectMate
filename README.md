@@ -4,6 +4,14 @@ ProjectMate is a premium full-stack developer collaboration and networking platf
 
 The project is built using a modern **BFF (Backend-for-Frontend) Architecture** with **Spring Boot** and **MongoDB Atlas** powering the backend, and **React** on the frontend.
 
+## 📸 Portal Previews
+
+### 🖥️ Workspace Dashboard
+![Dashboard Preview](screenshots/dashboard.png)
+
+### 🔍 Explore Projects Grid
+![Explore Projects Preview](screenshots/projects.png)
+
 ---
 
 ## 🛠 Tech Stack

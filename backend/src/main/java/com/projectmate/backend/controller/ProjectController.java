@@ -1,7 +1,11 @@
 package com.projectmate.backend.controller;
 
+import com.projectmate.backend.model.Notification;
 import com.projectmate.backend.model.Project;
+import com.projectmate.backend.model.ProjectApplication;
 import com.projectmate.backend.model.User;
+import com.projectmate.backend.repository.NotificationRepository;
+import com.projectmate.backend.repository.ProjectApplicationRepository;
 import com.projectmate.backend.repository.ProjectRepository;
 import com.projectmate.backend.security.CustomUserDetails;
 import lombok.Data;
@@ -11,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,9 +26,13 @@ import java.util.Map;
 public class ProjectController {
 
     private final ProjectRepository projectRepository;
+    private final NotificationRepository notificationRepository;
+    private final ProjectApplicationRepository projectApplicationRepository;
 
-    public ProjectController(ProjectRepository projectRepository) {
+    public ProjectController(ProjectRepository projectRepository, NotificationRepository notificationRepository, ProjectApplicationRepository projectApplicationRepository) {
         this.projectRepository = projectRepository;
+        this.notificationRepository = notificationRepository;
+        this.projectApplicationRepository = projectApplicationRepository;
     }
 
     @GetMapping
@@ -89,7 +98,7 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/apply")
-    public ResponseEntity<?> applyToProject(Authentication authentication, @PathVariable String id) {
+    public ResponseEntity<?> applyToProject(Authentication authentication, @PathVariable String id, @RequestBody(required = false) ApplyRequest request) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
         }
@@ -117,6 +126,39 @@ public class ProjectController {
 
             project.getApplicantIds().add(user.getId());
             projectRepository.save(project);
+            
+            String notes = "";
+            if (request != null && StringUtils.hasText(request.getNotes())) {
+                notes = request.getNotes();
+            }
+
+            // Create ProjectApplication record
+            ProjectApplication projectApplication = ProjectApplication.builder()
+                    .projectId(project.getId())
+                    .projectTitle(project.getTitle())
+                    .ownerId(project.getOwnerId())
+                    .applicantId(user.getId())
+                    .applicantName(user.getName())
+                    .applicantEmail(user.getEmail())
+                    .applicantRole(user.getRole())
+                    .notes(notes)
+                    .status("Pending")
+                    .createdAt(Instant.now())
+                    .build();
+            projectApplicationRepository.save(projectApplication);
+            
+            // Create notification for the project owner
+            Notification notification = Notification.builder()
+                    .recipientId(project.getOwnerId())
+                    .senderId(user.getId())
+                    .senderName(user.getName())
+                    .projectId(project.getId())
+                    .projectTitle(project.getTitle())
+                    .message(user.getName() + " applied to " + project.getTitle() + ".")
+                    .read(false)
+                    .createdAt(Instant.now())
+                    .build();
+            notificationRepository.save(notification);
             
             return ResponseEntity.ok(Map.of("message", "Application submitted successfully"));
         }
@@ -151,6 +193,26 @@ public class ProjectController {
             project.getMemberIds().add(userId);
             projectRepository.save(project);
             
+            // Sync with ProjectApplication status
+            projectApplicationRepository.findByProjectIdAndApplicantId(project.getId(), userId)
+                    .ifPresent(app -> {
+                        app.setStatus("Accepted");
+                        projectApplicationRepository.save(app);
+                    });
+            
+            // Create notification for the accepted developer
+            Notification notification = Notification.builder()
+                    .recipientId(userId)
+                    .senderId(user.getId())
+                    .senderName(user.getName())
+                    .projectId(project.getId())
+                    .projectTitle(project.getTitle())
+                    .message(user.getName() + " accepted your application for " + project.getTitle() + ".")
+                    .read(false)
+                    .createdAt(Instant.now())
+                    .build();
+            notificationRepository.save(notification);
+            
             return ResponseEntity.ok(Map.of("message", "Applicant accepted successfully"));
         }
 
@@ -166,5 +228,10 @@ public class ProjectController {
         private boolean remote;
         private List<String> roles;
         private List<String> stack;
+    }
+
+    @Data
+    public static class ApplyRequest {
+        private String notes;
     }
 }
